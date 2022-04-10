@@ -4,9 +4,11 @@ import json
 import shutil
 import subprocess
 import shlex
-from pprint import pprint
+import time
 
+from pprint import pprint
 from pathlib import Path
+from filelock import FileLock, Timeout
 
 """
     This class is mainly for sanity checking rather than archiving information.
@@ -36,6 +38,7 @@ class ExperimentUnit:
         self.metadata = {}
         self.success = False
         self.return_code = -1
+        self.launch_time = -1
 
         self.gem5_binary_hash = ExperimentUnit.__get_md5sum(self.gem5_binary_path)
 
@@ -44,10 +47,11 @@ class ExperimentUnit:
         unit.uuid = other.uuid
         unit.metadata = {}
         ExperimentUnit.__copy_one_level_dict(other.metadata, unit.metadata)
-        self.success = False
-        self.return_code = other.return_code
+        unit.success = False
+        unit.return_code = other.return_code
+        unit.launch_time = other.launch_time
 
-        self.gem5_binary_hash = ExperimentUnit.__get_md5sum(self.gem5_binary_path)
+        unit.gem5_binary_hash = ExperimentUnit.__get_md5sum(unit.gem5_binary_path)
 
     def add_metadata(self, key, val):
         self.metadata[key] = val
@@ -61,7 +65,10 @@ class ExperimentUnit:
             print("Error:", dirpath, "exists and not a directory.")
             return False
         dirpath.mkdir(parents=True, exist_ok=True)
-        
+
+        self.status = "running"
+        self.__dump_info()
+
         # launch the experiment
         params_list = []
         for key, val in self.gem5_params.items():
@@ -80,6 +87,7 @@ class ExperimentUnit:
         self.return_code = process_info.returncode
 
         # dump information
+        self.status = "finished"
         self.__dump_info()
 
     def __to_JSON_str(self):
@@ -89,17 +97,26 @@ class ExperimentUnit:
                           indent=4)
 
     def __dump_info(self):
-        info_file = os.path.join(self.gem5_output_path, "info.json")
-        with open(info_file, "w") as f:
-            # https://stackoverflow.com/questions/3768895/how-to-make-a-class-json-serializable
-            json.dump(self, f,
-                      default=lambda o: o.__dict__,
-                      sort_keys=True
-                      indent=4)
+        output_path = Path(self.gem5_output_path)
+        info_file = output_path / 'info.json'
+        info_json_path_lock = output_path / 'info.json.lock'
+        try:
+            lock = FileLock(info_json_path_lock)
+            with lock.acquire(timeout=120):
+                with open(info_file, "w") as f:
+                    # https://stackoverflow.com/questions/3768895/how-to-make-a-class-json-serializable
+                    json.dump(self, f,
+                              default=lambda o: o.__dict__,
+                              sort_keys=True
+                              indent=4)
+        finally:
+            print("Error: __dump_info failed to acquire the lock for file", info_file)
+            exit(1)
 
     def __is_runnable(self, run_if_failed):
         output_path = Path(self.gem5_output_path)
         info_json_path = output_path / 'info.json'
+        info_json_path_lock = output_path / 'info.json.lock'
 
         if not output_path.exists():
             return True
@@ -107,27 +124,38 @@ class ExperimentUnit:
         if not info_json_path.exists():
             return True
 
-        with open(info_json_path, "r") as f:
-            j = json.load(f)
-            if not "return_code" in j:
-                print("Warn: return_code not found for", info_json_path)
-                return True
-            if j["return_code"] == "0":
-                diff = []
-                if not self.gem5_binary_path == j["gem5_binary_path"]:
-                    diff.append("gem5_binary_path", self.gem5_binary_path, j["gem5_binary_path"])
-                elif not self.gem5_output_path == j["gem5_output_path"]:
-                    diff.append("gem5_output_path", self.gem5_output_path, j["gem5_output_path"])
-                elif not self.gem5_params == j["gem5_params"]:
-                    diff.append("gem5_params", self.gem5_params, j["gem5_params"])
-                elif not self.gem5_binary_hash == j["gem5_binary_hash"]:
-                    diff.append("gem5_binary_hash", self.gem5_binary_hash, j["gem5_binary_hash"])
-                if len(diff) > 0:
-                    print("Warn: Not rerun an experiment but different information")
-                    pprint(diff)
+        try:
+            lock = FileLock(info_json_path_lock)
+            with lock.acquire(timeout=120):
+                with open(info_json_path, "r") as f:
+                    j = json.load(f)
+                    if not "return_code" in j:
+                        print("Warn: \"return_code\" not found for", info_json_path)
+                        return True
+                    if not "status" in j:
+                        print("Warn: \"status\" not found for", info_json_path)
+                        return True
+                    if j["status"] == "running" or j["status"] == "finished":
+                        return False
+                    if j["return_code"] == "0":
+                        diff = []
+                        if not self.gem5_binary_path == j["gem5_binary_path"]:
+                            diff.append("gem5_binary_path", self.gem5_binary_path, j["gem5_binary_path"])
+                        elif not self.gem5_output_path == j["gem5_output_path"]:
+                            diff.append("gem5_output_path", self.gem5_output_path, j["gem5_output_path"])
+                        elif not self.gem5_params == j["gem5_params"]:
+                            diff.append("gem5_params", self.gem5_params, j["gem5_params"])
+                        elif not self.gem5_binary_hash == j["gem5_binary_hash"]:
+                            diff.append("gem5_binary_hash", self.gem5_binary_hash, j["gem5_binary_hash"])
+                        if len(diff) > 0:
+                            print("Warn: Not rerun an experiment but different information")
+                            pprint(diff)
+                        return False
+                    else:
+                        return run_if_failed
+            except Timeout:
+                print("Warn: failed to acquire the lock for file", info_json_path)
                 return False
-            else:
-                return run_if_failed
 
         return False
 
