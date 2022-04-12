@@ -5,7 +5,7 @@ from pathlib import Path
 
 import subprocess
 
-experiment_tag = "bougainvillea-1"
+experiment_tag = "bougainvillea-2"
 gem5_binary_path = "/home/hn/gem5/build/ARM/gem5.opt"
 gem5_config_path = "/home/hn/gem5/configs/example/arm/fs_xsbench.py"
 gem5_output_path_prefix = "/home/hn/experiment-results/arm_sve_xsbench/"
@@ -23,8 +23,7 @@ def get_md5sum(filepath):
     return md5sum
 
 disk_image_hash = get_md5sum(disk_image_path)
-#disk_image_md5sum = "f6accfd7ff1e07b4ae3dc13b78e80635"
-#gem5_binary_md5sum = "beaf1c069ac9226fc60d8d4b2fb5ec72"
+gem5_binary_md5sum = "41e34aed209775e16d12f02438b2c6715f20efd3"
 
 def sanity_check():
     assert(Path(gem5_binary_path).exists())
@@ -67,8 +66,8 @@ def metadata_generator():
     metadata["git-remote"] = "https://github.com/takekoputa/gem5"
     metadata["git-branch"] = "xsbench"
 
-    #metadata["gem5-binary-md5sum"] = gem5_binary_md5sum
-    #metadata["disk-image-md5sum"] = disk_image_md5sum
+    metadata["gem5-binary-md5sum"] = gem5_binary_md5sum
+    metadata["disk-image-md5sum"] = disk_image_md5sum
 
     return metadata
 
