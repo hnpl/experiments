@@ -30,7 +30,7 @@ def sanity_check():
     assert(Path(gem5_output_path_prefix).exists())
     assert(Path(env['M5_PATH']).exists())
     assert(Path(disk_image_path).exists())
-
+    assert(disk_image_hash == "22237d4d5609f3e5d24dd4ee5f01e97e")
 def output_folder_generator(cpu_type, vl, benchmark_size, benchmark_threads):
     return "_".join([experiment_tag, cpu_type, vl, benchmark_size, benchmark_threads])
 
