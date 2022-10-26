@@ -4,6 +4,7 @@ from gem5_launch_utils.ExperimentUnit import ExperimentUnit
 from pathlib import Path
 
 import subprocess
+import multiprocessing
 
 experiment_tag = "riscv-stream-1"
 gem5_binary_path = "/home/hn/experiments/STREAM-gem5-experiment/gem5-dev/build/RISCV/gem5.opt"
@@ -102,5 +103,5 @@ if __name__ == "__main__":
         if count == 2:
             break
 
-    n_processes = len(experiment.experiment_units)
+    n_processes = multiprocessing.cpu_count() // 2
     experiment.launch(n_processes)
