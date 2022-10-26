@@ -11,12 +11,13 @@ from pathlib import Path
 """
 
 class Config:
-    def __init__(self, workspace_path, n_elements_path, stream_repo, isa):
+    def __init__(self, workspace_path, n_elements_path, stream_repo, isa, n_threads):
         self.workspace_path = workspace_path
         self.n_elements_path = n_elements_path
         self.stream_repo = stream_repo
         self.isa = isa
         assert(isa in {"riscv", "arm", "x86"})
+        self.n_threads = n_threads
 
 def warn(message):
     print(f"warn: {message}")
@@ -42,11 +43,11 @@ def download_stream(configs):
     assert(error is None)
     return output
 
-def compile_stream_helper_riscv(n_elements, stream_repo_path, output_path):
+def compile_stream_helper_riscv(n_elements, n_threads, stream_repo_path, output_path):
     stream_repo_abspath = os.path.abspath(stream_repo_path)
     uid = os.getuid()
     gid = os.getgid()
-    command = f"docker run --rm --volume {stream_repo_abspath}:/STREAM -w /STREAM -u {uid}:{gid} -e CC=/riscv/_install/bin/riscv64-unknown-linux-gnu-gcc -e ARRAY_SIZE={n_elements} hn/mpi make"
+    command = f"docker run --rm --volume {stream_repo_abspath}:/STREAM -w /STREAM -u {uid}:{gid} -e CC=/riscv/_install/bin/riscv64-unknown-linux-gnu-gcc -e ARRAY_SIZE={n_elements} -e N_THREADS={n_threads} hn/mpi make"
     output, error = run_cmd(command)
     assert(error is None)
     
@@ -73,13 +74,14 @@ def compile_stream(configs):
         line = line.strip().split()
         n_elements_all = list(map(int, line))
     for n_elements in n_elements_all:
-        compiling_helper(n_elements, str(stream_repo_path), str(output_path))
+        compiling_helper(n_elements, configs.n_threads, str(stream_repo_path), str(output_path))
 
 if __name__ == "__main__":
     configs = Config(workspace_path = "build",
                     n_elements_path = os.path.abspath("riscv_n_elements.txt"),
                     stream_repo = "https://github.com/takekoputa/STREAM",
-                    isa = "riscv"
+                    isa = "riscv",
+                    n_threads=4
                     )
     workspace_path = Path(configs.workspace_path)
     workspace_path.mkdir(exist_ok=True)
