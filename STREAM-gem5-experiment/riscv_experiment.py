@@ -94,14 +94,10 @@ if __name__ == "__main__":
 
     experiment = Experiment()
 
-    count = 0
     for stream_binary_path in Path("build/binaries/riscv/").glob("stream_c.*"):
         stream_binary_path = str(stream_binary_path)
         unit = generate_stream_experiment_unit(stream_binary_path=stream_binary_path, num_cores=5)
         experiment.add_experiment_unit(unit)
-        count += 1
-        if count == 2:
-            break
 
     n_processes = multiprocessing.cpu_count() // 2
     experiment.launch(n_processes)
