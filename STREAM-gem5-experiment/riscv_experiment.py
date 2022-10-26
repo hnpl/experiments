@@ -9,9 +9,6 @@ experiment_tag = "riscv-stream-1"
 gem5_binary_path = "/home/hn/experiments/STREAM-gem5-experiment/gem5-dev/build/RISCV/gem5.opt"
 gem5_config_path = "/home/hn/experiments/STREAM-gem5-experiment/configs/riscvmatched-stream.py"
 gem5_output_path_prefix = "/home/hn/experiments/STREAM-gem5-experiment/results/"
-#env = {'M5_PATH': '/home/hn/gem5/arm-system/'}
-env = {}
-#disk_image_path = "/home/hn/disk-images/arm64-ubuntu-xsbench.img"
 
 def get_md5sum(filepath):
     filepath = str(filepath)
@@ -24,8 +21,8 @@ def get_md5sum(filepath):
         return None
     return md5sum.decode("utf-8")
 
-#disk_image_hash = get_md5sum(disk_image_path)
-gem5_binary_md5sum = ""
+# the gem5 binary in /scr/hn/gem5-dev-x86/build/RISCV/gem5.opt
+gem5_binary_md5sum = "274bfa021cace308be8bebbe29c3828b"
 
 def sanity_check():
     assert(Path(gem5_binary_path).exists())
