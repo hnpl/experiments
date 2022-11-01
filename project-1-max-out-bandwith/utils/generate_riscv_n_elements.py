@@ -10,7 +10,7 @@ def get_n_elements_array(start, end, step_size, element_size): # start, end, ste
 
 if __name__ == "__main__":
     output_file = sys.argv[1]
-    sizes = get_n_elements_array(2**16, 2**26, 2**16, 8) # [64KiB, 64MiB], step = 64 KiB
+    sizes = get_n_elements_array(start=2**16, end=2**24, step_size=2**16, element_size=8) # [64KiB, 16MiB], step = 64 KiB
     with open(output_file, "w") as f:
         for size in sizes:
             f.write(f"{size} ")
