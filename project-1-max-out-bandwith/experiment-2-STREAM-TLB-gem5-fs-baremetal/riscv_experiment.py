@@ -27,25 +27,27 @@ def sanity_check():
 def output_folder_generator(isa, num_stream_array_elements, num_cores, num_tlb_entries):
     return "-".join([isa, num_stream_array_elements, num_cores, num_tlb_entries])
 
-def gem5_params_generator(output_path, num_stream_array_elements, num_cores, num_tlb_entries):
+def gem5_params_generator(output_path, disk_image_path, num_stream_array_elements, num_cores, num_tlb_entries):
     gem5_params = {}
     config_params = {}
 
     """
-    gem5/build/RISCV/gem5.opt configs/riscv-fs.py --num_stream_array_elements=8192 --num_cores=5 --num_tlb_entries 512
+    gem5/build/RISCV/gem5.opt configs/riscv-fs.py --disk_image_path=./riscv-stream-disk.img \
+            --num_stream_array_elements=8192 --num_cores=5 --num_tlb_entries 512
     """
     # parameters for redirecting results
     gem5_params["-re"] = ""
     gem5_params["--outdir"] = output_path
     gem5_params["--listener-mode=off"] = ""
 
+    config_params["--disk_image_path"] = disk_image_path
     config_params["--num_stream_array_elements"] = num_stream_array_elements
     config_params["--num_cores"] = num_cores
     config_params["--num_tlb_entries"] = num_tlb_entries
 
     return gem5_params, config_params
 
-def metadata_generator(isa, num_stream_array_elements, num_cores, num_tlb_entries):
+def metadata_generator(isa, disk_image_path, num_stream_array_elements, num_cores, num_tlb_entries):
     metadata = {}
 
     metadata["tag"] = experiment_tag
@@ -57,21 +59,22 @@ def metadata_generator(isa, num_stream_array_elements, num_cores, num_tlb_entrie
     metadata["disk-image-md5sum"] = disk_image_md5sum
 
     metadata["isa"] = isa
+    metadata["disk_image_path"] = disk_image_path
     metadata["num_stream_array_elements"] = num_stream_array_elements
     metadata["num_tlb_entries"] = num_tlb_entries
     metadata["num_cores"] = num_cores
 
     return metadata
 
-def generate_stream_experiment_unit(isa, num_stream_array_elements, num_cores, num_tlb_entries):
+def generate_stream_experiment_unit(isa, disk_image_path, num_stream_array_elements, num_cores, num_tlb_entries):
     num_stream_array_elements = str(num_stream_array_elements)
     num_cores = str(num_cores)
     num_tlb_entries = str(num_tlb_entries)
 
-    output_folder_name = output_folder_generator(isa, stream_binary_path, num_cores)
+    output_folder_name = output_folder_generator(isa, num_stream_array_elements, num_cores, num_tlb_entries)
     output_path = str(Path(gem5_output_path_prefix) / output_folder_name)
 
-    gem5_params, config_params = gem5_params_generator(output_path, num_stream_array_elements, num_cores, num_tlb_entries)
+    gem5_params, config_params = gem5_params_generator(output_path, disk_image_path, num_stream_array_elements, num_cores, num_tlb_entries)
 
     unit = ExperimentUnit(gem5_binary_path = gem5_binary_path,
                           gem5_config_path = gem5_config_path,
@@ -80,7 +83,7 @@ def generate_stream_experiment_unit(isa, num_stream_array_elements, num_cores, n
                           config_params = config_params,
                           env = env)
 
-    metadata = metadata_generator(isa, num_stream_array_elements, num_cores, num_tlb_entries)
+    metadata = metadata_generator(isa, disk_image_path, num_stream_array_elements, num_cores, num_tlb_entries)
     for key, val in metadata.items():
         unit.add_metadata(key, val)
 
@@ -102,13 +105,11 @@ if __name__ == "__main__":
     num_cores_list = [4+1]
     num_tlb_entries_list = [64, 512, 1024, 2048]
 
-    print(len(num_elements_list))
-    num_elements_list = num_elements_list[0]
-
     for num_elements in num_elements_list:
         for num_cores in num_cores_list:
             for num_tlb_entries in num_tlb_entries_list:
                 unit = generate_stream_experiment_unit(isa = "riscv",
+                                                       disk_image_path = disk_image_path,
                                                        num_stream_array_elements = num_elements,
                                                        num_cores = num_cores,
                                                        num_tlb_entries = num_tlb_entries)

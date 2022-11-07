@@ -41,11 +41,13 @@ import argparse
 requires(isa_required=ISA.RISCV)
 
 parser = argparse.ArgumentParser("RISC-V Unmatched board Full System simulation")
+parser.add_argument("--disk_image_path", type=str, required=True, help="Path to the disk image")
 parser.add_argument("--num_stream_array_elements", type=str, required=True, help="Number of elements in the STREAM arrays")
 parser.add_argument("--num_cores", type=int, required=False, default=5, help="Number of U74 cores on the board, default: 5")
 parser.add_argument("--num_tlb_entries", type=int, required=False, default=512, help="Number of TLB entries assuming TLB is a 1 level fully associative cache, default: 512")
 args = parser.parse_args()
 
+disk_image_path = args.disk_image_path
 num_cores = args.num_cores
 num_stream_array_elements = args.num_stream_array_elements
 num_tlb_entries = args.num_tlb_entries
@@ -58,7 +60,7 @@ for core_idx in range(num_cores):
 # Set the Full System workload.
 board.set_kernel_disk_workload(
     kernel=Resource("riscv-bootloader-vmlinux-5.10"),
-    disk_image=CustomResource("/scr/hn/DISK_IMAGES/riscv-disk.img"),
+    disk_image=CustomResource(f"{disk_image_path}"),
     readfile_contents=f"{num_stream_array_elements}"
 )
 
