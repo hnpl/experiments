@@ -71,7 +71,9 @@ print("Beginning simulation!")
 simulator.run()
 # now: the beginning of the second iteration
 m5.stats.reset()
+print("Reset stats")
 simulator.run()
 # now: the end of the last iteration
 m5.stats.dump()
+print("Print results")
 simulator.run()
