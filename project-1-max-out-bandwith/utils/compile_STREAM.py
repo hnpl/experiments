@@ -1,7 +1,9 @@
 import subprocess
 import os
 from pathlib import Path
-
+import argparse
+from configs.configs import Config
+from multiprocessing import Pool, cpu_count
 """
   . Compile STREAM with RISC-V and X86 ISAs.
   . Workflow:
@@ -9,18 +11,6 @@ from pathlib import Path
     - Read the chosen element sizes.
     - Compile the workloads.
 """
-
-class Config:
-    def __init__(self, workspace_path, n_elements_path, stream_repo, isa, n_threads, with_m5_annotations, m5_build_abspath, m5ops_header_abspath):
-        self.workspace_path = workspace_path
-        self.n_elements_path = n_elements_path
-        self.stream_repo = stream_repo
-        self.isa = isa
-        assert(isa in {"riscv", "arm", "x86"})
-        self.n_threads = n_threads
-        self.with_m5_annotations = with_m5_annotations
-        self.m5_build_abspath = m5_build_abspath
-        self.m5ops_header_abspath = m5ops_header_abspath
 
 def warn(message):
     print(f"warn: {message}")
@@ -94,7 +84,7 @@ def compile_stream_helper_riscv(n_elements, n_threads, stream_repo_path, output_
 
     return True
 
-def compile_stream(configs):
+def compile_stream(configs, num_processes):
     stream_repo_path = Path("STREAM")
     output_path = Path("binaries") / Path(configs.isa)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -110,28 +100,34 @@ def compile_stream(configs):
         line = f.readlines()[0]
         line = line.strip().split()
         n_elements_all = list(map(int, line))
+
+    jobs = []
+
     for n_elements in n_elements_all:
-        compiling_helper(n_elements=n_elements,
-                         n_threads=configs.n_threads,
-                         stream_repo_path=str(stream_repo_path),
-                         output_path=str(output_path),
-                         with_m5_annotations=configs.with_m5_annotations,
-                         m5_build_abspath=configs.m5_build_abspath,
-                         m5ops_header_abspath=configs.m5ops_header_abspath)
+        jobs.append((n_elements,
+                     configs.n_threads,
+                     str(stream_repo_path),
+                     str(output_path),
+                     configs.with_m5_annotations,
+                     configs.m5_build_path,
+                     configs.m5ops_header_path))
+
+    pool = Pool(num_processes)
+    pool.starmap(compiling_helper, jobs)
 
 if __name__ == "__main__":
-    configs = Config(workspace_path = "build",
-                     n_elements_path = os.path.abspath("riscv_n_elements.txt"),
-                     stream_repo = "https://github.com/takekoputa/STREAM",
-                     isa = "riscv",
-                     n_threads=4,
-                     with_m5_annotations=True,
-                     m5_build_abspath=os.path.abspath("gem5/util/m5/build/riscv/"),
-                     m5ops_header_abspath=os.path.abspath("gem5/include/")
-                    )
+    parser = argparse.ArgumentParser("STREAM builder")
+    parser.add_argument("config_path", type=Path, help="Path to the compilation configuration JSON file.")
+    parser.add_argument("-j", type=int, default=1, help="Number of processes.")    
+
+    args = parser.parse_args()
+    num_processes = args.j
+
+    configs = Config(from_json_file=args.config_path)
+
     workspace_path = Path(configs.workspace_path)
     workspace_path.mkdir(exist_ok=True)
     os.chdir(configs.workspace_path)
 
     download_stream(configs)
-    compile_stream(configs)
+    compile_stream(configs, num_processes)
