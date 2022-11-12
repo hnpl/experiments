@@ -34,6 +34,8 @@ from python.gem5.prebuilt.riscvmatched.riscvmatched_board import (
 from gem5.isas import ISA
 from gem5.utils.requires import requires
 
+import m5
+
 requires(isa_required=ISA.RISCV)
 
 parser = argparse.ArgumentParser("RISC-V Unmatched board")
@@ -48,11 +50,17 @@ board = RISCVMatchedBoard(num_cores = num_cores)
 board.set_se_binary_workload(CustomResource(args.binary))
 
 simulator = Simulator(board=board, full_system=False)
+
+# Warm up
 simulator.run()
 
-print(
-    "Exiting @ tick {} because {}.".format(
-        simulator.get_current_tick(),
-        simulator.get_last_exit_event_cause(),
-    )
-)
+# ROI
+print("Reset stats")
+m5.stats.reset()
+print("Begin the second iteration")
+simulator.run()
+m5.stats.dump()
+print("Done the second iteration")
+
+# Report bandwidth
+simulator.run()
