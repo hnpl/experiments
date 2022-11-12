@@ -8,7 +8,7 @@ import multiprocessing
 
 experiment_tag = "riscv-stream-1"
 gem5_binary_path = "/home/hn/experiments/STREAM-gem5-experiment/gem5-dev/build/RISCV/gem5.opt"
-gem5_config_path = "/home/hn/experiments/STREAM-gem5-experiment/configs/riscvmatched-stream.py"
+gem5_config_path = "/home/hn/experiments/STREAM-gem5-experiment/configs/gem5/riscvmatched-stream.py"
 gem5_output_path_prefix = "/home/hn/experiments/STREAM-gem5-experiment/results/"
 
 def get_md5sum(filepath):
