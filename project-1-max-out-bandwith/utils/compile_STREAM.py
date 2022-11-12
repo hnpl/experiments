@@ -121,13 +121,13 @@ def compile_stream(configs):
 
 if __name__ == "__main__":
     configs = Config(workspace_path = "build",
-                    n_elements_path = os.path.abspath("riscv_n_elements.txt"),
-                    stream_repo = "https://github.com/takekoputa/STREAM",
-                    isa = "riscv",
-                    n_threads=4,
-                    with_m5_annotations=True,
-                    m5_build_abspath=os.path.abspath("gem5/util/m5/build/riscv/"),
-                    m5ops_header_abspath=os.path.abspath("gem5/include/")
+                     n_elements_path = os.path.abspath("riscv_n_elements.txt"),
+                     stream_repo = "https://github.com/takekoputa/STREAM",
+                     isa = "riscv",
+                     n_threads=4,
+                     with_m5_annotations=True,
+                     m5_build_abspath=os.path.abspath("gem5/util/m5/build/riscv/"),
+                     m5ops_header_abspath=os.path.abspath("gem5/include/")
                     )
     workspace_path = Path(configs.workspace_path)
     workspace_path.mkdir(exist_ok=True)

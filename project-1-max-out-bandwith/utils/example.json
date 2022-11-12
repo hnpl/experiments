@@ -1,0 +1,14 @@
+{
+    "name": {
+        "type": "string",
+        "value": "example"
+    },
+    "n_threads": {
+        "type": "int",
+        "value": "4"
+    },
+    "gem5_binary": {
+        "type": "path",
+        "value": "gem5/build/RISCV/gem5.opt"
+    }
+}
