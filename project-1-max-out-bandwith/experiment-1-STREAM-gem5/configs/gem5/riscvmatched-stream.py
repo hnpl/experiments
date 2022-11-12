@@ -33,6 +33,7 @@ from python.gem5.prebuilt.riscvmatched.riscvmatched_board import (
 )
 from gem5.isas import ISA
 from gem5.utils.requires import requires
+from gem5.utils.override import overrides
 
 import m5
 
@@ -45,7 +46,20 @@ args = parser.parse_args()
 
 num_cores = args.num_cores
 
-board = RISCVMatchedBoard(num_cores = num_cores)
+class ModifiedRISCVMatchedBoard(RISCVMatchedBoard):
+    def __init__(self, num_cores = 0, clk_freq = "1.2GHz", l2_size = "2MiB", is_fs = False):
+        super().__init__(num_cores, clk_freq, l2_size, is_fs)
+    @overrides(RISCVMatchedBoard)
+    def _pre_instantiate(self):
+        self._connect_things()
+        for core_idx in range(self.processor.get_num_cores()):
+            board.cache_hierarchy.dptw_caches[core_idx].mshrs = 1
+            board.cache_hierarchy.iptw_caches[core_idx].mshrs = 1
+            board.cache_hierarchy.l1dcaches[0].mshrs = 1
+            board.cache_hierarchy.l1icaches[0].mshrs = 1
+            board.cache_hierarchy.l2caches[0].mshrs = 1
+
+board = ModifiedRISCVMatchedBoard(num_cores = num_cores)
 
 board.set_se_binary_workload(CustomResource(args.binary))
 
