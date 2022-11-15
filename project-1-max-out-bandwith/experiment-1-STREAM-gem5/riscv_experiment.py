@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import multiprocessing
 
-experiment_tag = "riscv-stream-1"
+experiment_tag = "riscv-stream-2"
 gem5_binary_path = "/scr/hn/gem5-takekoputa-stream/build/RISCV/gem5.opt"
 gem5_config_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-1-STREAM-gem5/configs/gem5/riscvmatched-stream.py"
 gem5_output_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-1-STREAM-gem5/results"
@@ -114,5 +114,5 @@ if __name__ == "__main__":
         unit = generate_stream_experiment_unit(experiment_tag=experiment_tag, stream_binary_path=stream_binary_path, num_elements=num_elements, num_cores=5)
         experiment.add_experiment_unit(unit)
 
-    n_processes = multiprocessing.cpu_count() // 2
+    n_processes = multiprocessing.cpu_count() // 4
     experiment.launch(n_processes)

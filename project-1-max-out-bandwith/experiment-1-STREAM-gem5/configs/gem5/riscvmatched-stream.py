@@ -55,9 +55,9 @@ class ModifiedRISCVMatchedBoard(RISCVMatchedBoard):
         for core_idx in range(self.processor.get_num_cores()):
             board.cache_hierarchy.dptw_caches[core_idx].mshrs = 1
             board.cache_hierarchy.iptw_caches[core_idx].mshrs = 1
-            board.cache_hierarchy.l1dcaches[0].mshrs = 1
-            board.cache_hierarchy.l1icaches[0].mshrs = 1
-            board.cache_hierarchy.l2caches[0].mshrs = 1
+            board.cache_hierarchy.l1dcaches[core_idx].mshrs = 1
+            board.cache_hierarchy.l1icaches[core_idx].mshrs = 1
+            board.cache_hierarchy.l2caches[core_idx].mshrs = 1
 
 board = ModifiedRISCVMatchedBoard(num_cores = num_cores)
 
