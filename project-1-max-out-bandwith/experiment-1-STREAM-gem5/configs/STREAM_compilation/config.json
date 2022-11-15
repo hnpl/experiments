@@ -1,0 +1,34 @@
+{
+    "workspace_path": {
+        "type": "path",
+        "value": "build"
+    },
+    "n_elements_path": {
+        "type": "path",
+        "value": "riscv_n_elements.txt"
+    },
+    "stream_repo": {
+        "type": "string",
+        "value": "https://github.com/takekoputa/STREAM"
+    },
+    "isa": {
+        "type": "string",
+        "value": "riscv"
+    },
+    "n_threads": {
+        "type": "int",
+        "value": 4
+    },
+    "with_m5_annotations": {
+        "type": "boolean",
+        "value": "True"
+    },
+    "m5_build_path": {
+        "type": "path",
+        "value": "gem5/util/m5/build/riscv/"
+    },
+    "m5ops_header_path": {
+        "type": "path",
+        "value": "gem5/include"
+    }
+}
