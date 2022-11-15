@@ -27,6 +27,7 @@
 import argparse
 
 from gem5.simulate.simulator import Simulator
+from gem5.utils.override import overrides
 from gem5.utils.requires import requires
 
 from gem5.components.boards.test_board import TestBoard
@@ -36,25 +37,35 @@ from gem5.components.processors.random_generator import RandomGenerator
 from gem5.prebuilt.riscvmatched import riscvmatched_board, riscvmatched_cache
 
 parser = argparse.ArgumentParser("RISC-V Unmatched board with traffic generators")
-parser.add_argument("--num_cores", type=int, required=False, default=5, help="Number of traffic generators, default: 4")
+parser.add_argument("--num_cores", type=int, required=False, default=4, help="Number of traffic generators, default: 4")
 args = parser.parse_args()
 
 num_cores = args.num_cores
 
 linear_traffic_generator = LinearGenerator(
-    num_cores=num_cores, duration="1ms", rate="32GiB/s", max_addr=2**34, rd_perc=50
+    num_cores=num_cores, duration="1s", rate="32GiB/s", max_addr=2**34, rd_perc=50
 )
-board = TestBoard(clk_freq="1GHz",
-                  generator=linear_traffic_generator,
-                  memory=riscvmatched_board.U74Memory(),
-                  cache_hierarchy=riscvmatched_cache.RISCVMatchedCacheHierarchy(l2_size="2MiB"))
+
+class ModifiedTestBoard(TestBoard):
+    def __init__(self, clk_freq, generator, memory, cache_hierarchy):
+        super().__init__(clk_freq, generator, memory, cache_hierarchy)
+    @overrides(TestBoard)
+    def _pre_instantiate(self):
+        self._connect_things()
+        for core_idx in range(self.processor.get_num_cores()):
+            self.cache_hierarchy.dptw_caches[core_idx].mshrs = 1
+            self.cache_hierarchy.iptw_caches[core_idx].mshrs = 1
+            self.cache_hierarchy.l1dcaches[core_idx].mshrs = 1
+            self.cache_hierarchy.l1icaches[core_idx].mshrs = 1
+            self.cache_hierarchy.l2caches[core_idx].mshrs = 1
+            self.cache_hierarchy.l2buses[core_idx].snoop_filter.max_capacity = "100MiB"
+        self.cache_hierarchy.membus.snoop_filter.max_capacity = "100MiB"
+
+board = ModifiedTestBoard(clk_freq="1GHz",
+                          generator=linear_traffic_generator,
+                          memory=riscvmatched_board.U74Memory(),
+                          cache_hierarchy=riscvmatched_cache.RISCVMatchedCacheHierarchy(l2_size="2MiB"))
 
 simulator = Simulator(board=board, full_system=False)
 simulator.run()
 
-print(
-    "Exiting @ tick {} because {}.".format(
-        simulator.get_current_tick(),
-        simulator.get_last_exit_event_cause(),
-    )
-)
