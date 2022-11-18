@@ -10,14 +10,14 @@ experiment_tag = "riscv-stream-fs-tlb"
 gem5_binary_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-2-STREAM-TLB-gem5-fs-baremetal/gem5/build/RISCV/gem5.opt"
 gem5_config_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-2-STREAM-TLB-gem5-fs-baremetal/configs/riscv-fs.py"
 gem5_output_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-2-STREAM-TLB-gem5-fs-baremetal/results/"
-disk_image_path = "/scr/hn/DISK_IMAGES/riscv-stream-disk.img"
+disk_image_path = "/scr/hn/DISK_IMAGES/ubuntu-hpc-riscv.img"
 
 # the gem5 binary @ azacca in /scr/hn/gem5-takekoputa-stream/build/RISCV/gem5.opt
 # but I'll use a symlink to put /scr/hn/gem5-takekoputa-stream/ -> experiments/gem5
 # the gem5 repo is at https://github.com/takekoputa/gem5
 # this binary is compiled off the stream-experiments branch
-gem5_binary_md5sum = "3ca4ea6ae82a4095eefe4d3abbc46e45"
-disk_image_md5sum = "151ba1812249c19435a91b1e2e8a9034"
+gem5_binary_md5sum = "fdbe8d70644aab97024f5081b4990621"
+disk_image_md5sum = "f4c3d78389462663a9c37f0b90b393f4" # using the same disk image as the npb experiment
 
 def sanity_check():
     assert(Path(gem5_binary_path).exists())
@@ -51,7 +51,7 @@ def metadata_generator(isa, disk_image_path, num_stream_array_elements, num_core
     metadata = {}
 
     metadata["tag"] = experiment_tag
-    metadata["git-hash"] = "5d0a7b6a6cca0dc20e8b8c366db2ccc150c7480a(gem5)+a8b490ee88b69700c357258be29e0a1c7dd1a61b(mine)"
+    metadata["git-hash"] = "a49cba948049b7b8a3a30a586160c8198292ff51(gem5)+657ecf6aba603844e8468a5e1841d9171a31b869(mine)"
     metadata["git-remote"] = "https://github.com/takekoputa/gem5"
     metadata["git-branch"] = "stream-experiments"
 
@@ -72,7 +72,7 @@ def generate_stream_experiment_unit(isa, disk_image_path, num_stream_array_eleme
     num_tlb_entries = str(num_tlb_entries)
 
     output_folder_name = output_folder_generator(isa, num_stream_array_elements, num_cores, num_tlb_entries)
-    output_path = str(Path(gem5_output_path_prefix) / output_folder_name)
+    output_path = str(Path(gem5_output_path_prefix) / experiment_tag / output_folder_name)
 
     gem5_params, config_params = gem5_params_generator(output_path, disk_image_path, num_stream_array_elements, num_cores, num_tlb_entries)
 
@@ -115,5 +115,5 @@ if __name__ == "__main__":
                                                        num_tlb_entries = num_tlb_entries)
                 experiment.add_experiment_unit(unit)
 
-    n_processes = multiprocessing.cpu_count() // 2
+    n_processes = 10
     experiment.launch(n_processes)

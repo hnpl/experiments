@@ -52,16 +52,41 @@ num_cores = args.num_cores
 num_stream_array_elements = args.num_stream_array_elements
 num_tlb_entries = args.num_tlb_entries
 
-board = RISCVMatchedBoard(num_cores = num_cores, is_fs=True)
-for core_idx in range(num_cores):
-    board.processor.cores[core_idx].core.mmu.itb.size = num_tlb_entries
-    board.processor.cores[core_idx].core.mmu.dtb.size = num_tlb_entries
+class ModifiedRISCVMatchedBoard(RISCVMatchedBoard):
+    def __init__(self, num_cores = 0, clk_freq = "1.2GHz", l2_size = "2MiB", is_fs = False):
+        super().__init__(num_cores, clk_freq, l2_size, is_fs)
+
+    @overrides(RISCVMatchedBoard)
+    def _pre_instantiate(self):
+        self._connect_things()
+        for core_idx in range(self.processor.get_num_cores()):
+            self.cache_hierarchy.dptw_caches[core_idx].mshrs = 1
+            self.cache_hierarchy.iptw_caches[core_idx].mshrs = 1
+            self.cache_hierarchy.l1dcaches[core_idx].mshrs = 1
+            self.cache_hierarchy.l1icaches[core_idx].mshrs = 1
+            self.cache_hierarchy.l2caches[core_idx].mshrs = 1
+        for core_idx in range(num_cores):
+            self.processor.cores[core_idx].core.mmu.itb.size = num_tlb_entries
+            self.processor.cores[core_idx].core.mmu.dtb.size = num_tlb_entries
+
+    @overrides(RISCVMatchedBoard)
+    def get_default_kernel_args(self):
+        return [
+            "earlyprintk=ttyS0",
+            "console=ttyS0",
+            "lpj=7999923",
+            "root=/dev/vda1",
+            "init=/root/init.sh",
+            "rw",
+        ]
+
+board = ModifiedRISCVMatchedBoard(num_cores = num_cores, is_fs=True)
 
 # Set the Full System workload.
 board.set_kernel_disk_workload(
     kernel=Resource("riscv-bootloader-vmlinux-5.10"),
     disk_image=CustomResource(f"{disk_image_path}"),
-    readfile_contents=f"{num_stream_array_elements}"
+    readfile_contents=f"/root/STREAM/stream_c.{num_stream_array_elements}"
 )
 
 simulator = Simulator(board=board)
