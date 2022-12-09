@@ -13,15 +13,11 @@ from gem5.components.cachehierarchies.ruby.caches.mesi_three_level.directory imp
 
 from m5.objects import SubSystem, L2Cache_Controller, AddrRange, RubySequencer, Switch, SimpleIntLink, SimpleExtLink, SubSystem, SimObject
 
-#from .router import Router
-#from .ruby_link import ExtLink, IntLink
+from .ruby_network_components import RubyRouter, RubyExtLink, RubyIntLink, RubyNetworkComponent
 
-class CoreComplex(SubSystem):
+class CoreComplex(SubSystem, RubyNetworkComponent):
     _core_id = 0
     _core_complex_id = 0
-    _int_link_id = 0
-    _ext_link_id = 0
-    _router_id = 0
 
     @classmethod
     def _get_core_id(cls):
@@ -33,29 +29,11 @@ class CoreComplex(SubSystem):
         cls._core_complex_id += 1
         return cls._core_complex_id - 1
 
-    @classmethod
-    def _get_int_link_id(cls):
-        cls._int_link_id += 1
-        return cls._int_link_id - 1
-
-    @classmethod
-    def _get_ext_link_id(cls):
-        cls._ext_link_id += 1
-        return cls._ext_link_id - 1
-
-    @classmethod
-    def _get_router_id(cls):
-        cls._router_id += 1
-        return cls._router_id - 1
-
     def __init__(
         self,
         board: AbstractBoard,
         cores: List[AbstractCore],
-        addr_range: AddrRange,
         ruby_system,
-        network,
-        mem_port,
         l1i_size: str,
         l1i_assoc: int,
         l1d_size: str,
@@ -65,7 +43,8 @@ class CoreComplex(SubSystem):
         l3_size: str,
         l3_assoc: int,
     ):
-        super().__init__()
+        SubSystem.__init__(self=self)
+        RubyNetworkComponent.__init__(self=self)
 
         self._l1i_size = l1i_size
         self._l1i_assoc = l1i_assoc
@@ -78,52 +57,30 @@ class CoreComplex(SubSystem):
         
         self._board = board
         self._cores = cores
-        self._addr_range = addr_range
         self._ruby_system = ruby_system
-        self._network = network
-        self._mem_port = mem_port
         self._cache_line_size = 64
 
-        self._l1_controllers = []
-        self._l2_controllers = []
-        self._l3_controllers = []
         self._directory_controllers = []
 
         self._core_complex_id = self._get_core_complex_id()
-        self._int_routers = []
-        self._core_complex_router = None # this will be connect to component outside the core complex
-        self._int_links = self._network._int_links
-        self._ext_links = self._network._ext_links
-
+        self.main_router = RubyRouter(self._ruby_system) # this will be connect to component outside the core complex
+        self._add_router(self.main_router)
         self._create_core_complex()
 
-    def get_directory_controllers(self):
-        return self._directory_controllers
-    def get_int_links(self):
-        return self._int_links
-    def get_ext_links(self):
-        return self._ext_links
-    def get_all_routers(self):
-        return [*self._int_routers, self._core_complex_router]
+    def get_main_router(self):
+        return self.main_router
 
     def _create_core_complex(self):
-        # Create the controllers and link the L1 and its corresponding L2
-        self.core_clusters = [self._create_core_private_cache(core) for core in self._cores]
-        self._create_core_complex_shared_cache()
-        self._create_core_complex_directory_controller()
-
-        # Setting up a router and an external link for each controller
+        # Create L1 caches, L2 cache, and corresponding controllers per core
+        self.core_clusters = [self._create_core_cluster(core) for core in self._cores]
+        # Create L3 cache and its corresponding controller
+        self._create_shared_cache()
+        # Setting up one router and one external link per controller
         self._create_external_links()
-        # Setting up a router for this core complex that is connected to
-        # all other routers in the core complex via internal links.
+        # Setting up L1/L2 links, L2/main links, L3/main link
         self._create_internal_links()
 
-        # we can call SimpleNetwork.setup_buffers() later.
-        #self._network._int_links.extend(self.get_int_links())
-        #self._network._ext_links.extend(self.get_ext_links())
-        self._network._routers.extend(self.get_all_routers())
-
-    def _create_core_private_cache(self, core: AbstractCore):
+    def _create_core_cluster(self, core: AbstractCore):
         cluster = SubSystem()
         core_id = self._get_core_id()
 
@@ -132,7 +89,7 @@ class CoreComplex(SubSystem):
             l1i_assoc = self._l1i_assoc,
             l1d_size = self._l1d_size,
             l1d_assoc = self._l1d_assoc,
-            network = self._network,
+            network = self._ruby_system.network,
             core = core,
             cache_line_size = self._cache_line_size,
             target_isa = self._board.processor.get_isa(),
@@ -143,6 +100,7 @@ class CoreComplex(SubSystem):
             dcache = cluster.l1_cache.Dcache,
             clk_domain = cluster.l1_cache.clk_domain
         )
+
         if self._board.has_io_bus():
             cluster.l1_cache.sequencer.connectIOPorts(self._board.get_io_bus())
         cluster.l1_cache.ruby_system = self._ruby_system
@@ -158,12 +116,11 @@ class CoreComplex(SubSystem):
             )
         else:
             core.connect_interrupt()
-        self._l1_controllers.append(cluster.l1_cache)
 
         cluster.l2_cache = L2Cache(
             l2_size=self._l2_size,
             l2_assoc=self._l2_assoc,
-            network=self._network,
+            network=self._ruby_system.network,
             core=core,
             num_l3Caches=1, # each core complex has 1 slice of L3 Cache
             cache_line_size=self._cache_line_size,
@@ -172,7 +129,6 @@ class CoreComplex(SubSystem):
             clk_domain=self._board.get_clock_domain(),
         )
         cluster.l2_cache.ruby_system = self._ruby_system
-        self._l2_controllers.append(cluster.l2_cache)
         # L0Cache in the ruby backend is l1 cache in stdlib
         # L1Cache in the ruby backend is l2 cache in stdlib
         cluster.l2_cache.bufferFromL0 = cluster.l1_cache.bufferToL1
@@ -180,92 +136,57 @@ class CoreComplex(SubSystem):
         
         return cluster
 
-    def _create_core_complex_shared_cache(self):
+    def _create_shared_cache(self):
         self.l3_cache = L3Cache(
             l3_size=self._l3_size,
             l3_assoc=self._l3_assoc,
-            network=self._network,
+            network=self._ruby_system.network,
             num_l3Caches=1,
             cache_line_size=self._cache_line_size,
             cluster_id=self._core_complex_id,
         )
         self.l3_cache.ruby_system = self._ruby_system
 
-    def _create_core_complex_directory_controller(self):
-        directory_controller = Directory(
-            self._network, self._cache_line_size, self._addr_range, self._mem_port
-        )
-        directory_controller.ruby_system = self._ruby_system
-        self._directory_controllers.append(directory_controller)
-
     # This is where all routers and links are created
     def _create_external_links(self):
-        for l1_controller in self._l1_controllers:
-            router = Switch()
-            router.router_id = self._get_router_id()
-            ext_link = SimpleExtLink()
-            ext_link.link_id = self._get_ext_link_id()
-            ext_link.ext_node = l1_controller
-            ext_link.int_node = router
-            self._int_routers.append(router)
-            self._ext_links.append(ext_link)
-        for l2_controller in self._l2_controllers:
-            router = Switch()
-            router.router_id = self._get_router_id()
-            ext_link = SimpleExtLink()
-            ext_link.link_id = self._get_ext_link_id()
-            ext_link.ext_node = l2_controller
-            ext_link.int_node = router
-            self._int_routers.append(router)
-            #self._network._routers.append(router)
-            self._ext_links.append(ext_link)
+        # create a router per cache controller
+        #  - there is one L3 per ccd
+        self.l3_router = RubyRouter(self._ruby_system)
+        self._add_router(self.l3_router)
+        #  - there is one L1 and one L2 per cluster
+        for cluster in self.core_clusters:
+            cluster.l1_router = RubyRouter(self._ruby_system)
+            self._add_router(cluster.l1_router)
+            cluster.l2_router = RubyRouter(self._ruby_system)
+            self._add_router(cluster.l2_router)
 
-        l3_controller_router = Switch()
-        l3_controller_router.router_id = self._get_router_id()
-        l3_controller_ext_link = SimpleExtLink()
-        l3_controller_ext_link.link_id = self._get_ext_link_id()
-        l3_controller_ext_link.ext_node = self.l3_cache
-        l3_controller_ext_link.int_node = l3_controller_router
-        # Odd stuff
-        self._int_routers.append(l3_controller_router)
-        #self._network._routers.append(l3_controller_router)
-        self._ext_links.append(l3_controller_ext_link)
-        
-        directory_controller_router = Switch()
-        directory_controller_router.router_id = self._get_router_id()
-        directory_controller_ext_link = SimpleExtLink()
-        directory_controller_ext_link.link_id = self._get_ext_link_id()
-        directory_controller_ext_link.ext_node = self._directory_controllers[0]
-        directory_controller_ext_link.int_node = directory_controller_router
-        # Odd stuff
-        self._int_routers.append(directory_controller_router)
-        #self._network._routers.append(directory_controller_router)
-        self._ext_links.append(directory_controller_ext_link)
+        # create an ext link from a controller to a router
+        self.l3_router_link = RubyExtLink(ext_node=self.l3_cache, int_node=self.l3_router)
+        self._add_ext_link(self.l3_router_link)
+        for cluster in self.core_clusters:
+            cluster.l1_router_link = RubyExtLink(ext_node=cluster.l1_cache, int_node=cluster.l1_router)
+            self._add_ext_link(cluster.l1_router_link)
+            cluster.l2_router_link = RubyExtLink(ext_node=cluster.l2_cache, int_node=cluster.l2_router)
+            self._add_ext_link(cluster.l2_router_link)
 
     def _create_internal_links(self):
-        self._core_complex_router = Switch()
-        self._core_complex_router.router_id = self._get_router_id()
-        #self._network._routers.append(self._core_complex_router)
-        for r in self._int_routers:
-            int_link_1 = SimpleIntLink()
-            int_link_1.link_id = self._get_int_link_id()
-            int_link_1.src_node = self._core_complex_router
-            int_link_1.dst_node = r
-            int_link_2 = SimpleIntLink()
-            int_link_2.link_id = self._get_int_link_id()
-            int_link_2.src_node = r
-            int_link_2.dst_node = self._core_complex_router
-            # Odd stuff
-            self._int_links.extend([int_link_1, int_link_2])
-            #self._network._int_links.extend([int_link_1, int_link_2])
-
-    def connect_to_central_router(self, central_router):
-        int_link_1 = SimpleIntLink()
-        int_link_1.link_id = self._get_int_link_id()
-        int_link_1.src_node = central_router
-        int_link_1.dst_node = self._core_complex_router
-        int_link_2 = SimpleIntLink()
-        int_link_2.link_id = self._get_int_link_id()
-        int_link_2.src_node = self._core_complex_router
-        int_link_2.dst_node = central_router
-        self._int_links.extend([int_link_1, int_link_2])
+        # create L1/L2 links
+        for cluster in self.core_clusters:
+            l1_to_l2, l2_to_l1 = RubyIntLink.create_bidirectional_links(cluster.l1_router, cluster.l2_router)
+            cluster.l1_to_l2_link = l1_to_l2
+            cluster.l2_to_l1_link = l2_to_l1
+            self._add_int_link(l1_to_l2)
+            self._add_int_link(l2_to_l1)
+        # create L2/main_router links
+        for cluster in self.core_clusters:
+            l2_to_main, main_to_l2 = RubyIntLink.create_bidirectional_links(cluster.l2_router, self.main_router)
+            cluster.l2_to_main_link = l2_to_main
+            cluster.main_to_l2_link = main_to_l2
+            self._add_int_link(l2_to_main)
+            self._add_int_link(main_to_l2)
+        # create L3/main_router link
+        l3_to_main, main_to_l3 = RubyIntLink.create_bidirectional_links(self.l3_router, self.main_router)
+        self.l3_to_main_link = l3_to_main
+        self.main_to_l3_link = main_to_l3
+        self._add_int_link(l3_to_main)
+        self._add_int_link(main_to_l3)
