@@ -10,11 +10,22 @@ from gem5.simulate.simulator import Simulator
 
 from m5.objects import HBM_1000_4H_1x64
 
-from components.TLDR import TLDRCache
+from components.Octopi import OctopiCache
 
 requires(isa_required=ISA.RISCV)
 
-cache_hierarchy = TLDRCache(
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--command", type=str)
+parser.add_argument("--num_ccxs", type=int, required=True)
+parser.add_argument("--num_cores", type=int, required=True)
+args = parser.parse_args()
+
+num_ccxs = args.num_ccxs
+num_cores = args.num_cores
+command = args.command
+
+cache_hierarchy = OctopiCache(
     l1i_size  = "32KiB",
     l1i_assoc = 8,
     l1d_size  = "32KiB",
@@ -23,19 +34,19 @@ cache_hierarchy = TLDRCache(
     l2_assoc = 8,
     l3_size = "32MiB",
     l3_assoc = 32,
-    num_core_complexes = 2,
+    num_core_complexes = num_ccxs,
 )
 
 memory = ChanneledMemory(
     dram_interface_class = HBM_1000_4H_1x64,
-    num_channels = 2, # should equal to the number of core complexes
+    num_channels = num_ccxs, # should equal to the number of core complexes
     interleaving_size = 2**8,
     size = "8GiB",
     addr_mapping = None
 )
 
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=16
+    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=num_cores
 )
 
 class HighPerformanceRiscvBoard(RiscvBoard):
@@ -57,13 +68,6 @@ board = HighPerformanceRiscvBoard(
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
-
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("command", type=str)
-args = parser.parse_args()
-
-command = args.command
 
 # Set the Full System workload.
 board.set_kernel_disk_workload(

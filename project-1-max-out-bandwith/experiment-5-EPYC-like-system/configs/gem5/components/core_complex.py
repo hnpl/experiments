@@ -92,8 +92,8 @@ class CoreComplex(SubSystem):
         self._core_complex_id = self._get_core_complex_id()
         self._int_routers = []
         self._core_complex_router = None # this will be connect to component outside the core complex
-        self._int_links = []
-        self._ext_links = []
+        self._int_links = self._network._int_links
+        self._ext_links = self._network._ext_links
 
         self._create_core_complex()
 
@@ -119,8 +119,8 @@ class CoreComplex(SubSystem):
         self._create_internal_links()
 
         # we can call SimpleNetwork.setup_buffers() later.
-        self._network._int_links.extend(self.get_int_links())
-        self._network._ext_links.extend(self.get_ext_links())
+        #self._network._int_links.extend(self.get_int_links())
+        #self._network._ext_links.extend(self.get_ext_links())
         self._network._routers.extend(self.get_all_routers())
 
     def _create_core_private_cache(self, core: AbstractCore):
@@ -257,4 +257,15 @@ class CoreComplex(SubSystem):
             int_link_2.dst_node = self._core_complex_router
             # Odd stuff
             self._int_links.extend([int_link_1, int_link_2])
-            #self._network._int_links.extend([int_link_1, int_link_2]) 
+            #self._network._int_links.extend([int_link_1, int_link_2])
+
+    def connect_to_central_router(self, central_router):
+        int_link_1 = SimpleIntLink()
+        int_link_1.link_id = self._get_int_link_id()
+        int_link_1.src_node = central_router
+        int_link_1.dst_node = self._core_complex_router
+        int_link_2 = SimpleIntLink()
+        int_link_2.link_id = self._get_int_link_id()
+        int_link_2.src_node = self._core_complex_router
+        int_link_2.dst_node = central_router
+        self._int_links.extend([int_link_1, int_link_2])

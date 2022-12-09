@@ -9,11 +9,13 @@ from gem5.utils.requires import requires
 
 from gem5.components.cachehierarchies.ruby.caches.mesi_three_level.dma_controller import DMAController
 
-from m5.objects import RubySystem, DMASequencer, RubyPortProxy, SimpleNetwork
+from m5.objects import RubySystem, DMASequencer, RubyPortProxy, SimpleNetwork, Switch
 
 from .core_complex import CoreComplex
+from .router import Router
+from .ruby_link import ExtLink, IntLink
 
-class TLDRCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
+class OctopiCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
     def __init__(
         self,
         l1i_size: str,
@@ -95,6 +97,15 @@ class TLDRCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
                 l3_assoc = self._l3_assoc,
         ) for core_complex_idx, (address_range, mem_port) in enumerate(board.get_mem_ports())]
 
+        self.central_router = Switch()
+        from pprint import pprint
+        pprint(vars(self.central_router))
+        self.central_router.virt_nets = 3
+        self.central_router.router_id = CoreComplex._get_router_id()
+        self.ruby_system.network._routers.append(self.central_router)
+        for ccx in self.core_complexes:
+            ccx.connect_to_central_router(self.central_router)
+
         self.ruby_system.num_of_sequencers = len(all_cores) + len(self._dma_controllers)
         # SimpleNetwork requires .int_links and .routers to exist
         # if we want to call SimpleNetwork.setup_buffers()
@@ -107,10 +118,6 @@ class TLDRCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
         # other functional-only things.
         self.ruby_system.sys_port_proxy = RubyPortProxy()
         board.connect_system_port(self.ruby_system.sys_port_proxy.in_ports)
-
-        from pprint import pprint
-        pprint(vars(self.ruby_system))
-        pprint(vars(self.ruby_system.network))
 
     def _create_dma_controller(self, board, ruby_system):
         self._dma_controllers = []
