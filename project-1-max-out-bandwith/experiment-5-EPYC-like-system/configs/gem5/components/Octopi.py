@@ -31,6 +31,7 @@ class OctopiCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
         l3_size: str,
         l3_assoc: int,
         num_core_complexes: int,
+        is_fullsystem: bool
     ):
         AbstractRubyCacheHierarchy.__init__(self=self)
         AbstractThreeLevelCacheHierarchy.__init__(
@@ -46,8 +47,11 @@ class OctopiCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
         )
 
         self._directory_controllers = []
+        self._dma_controllers = []
+        self._io_controllers = []
         self._core_complexes = []
         self._num_core_complexes = num_core_complexes
+        self._is_fullsystem = is_fullsystem
 
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
@@ -85,7 +89,7 @@ class OctopiCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
         self._create_directory_controllers(board)
         self._create_dma_controllers(board, self.ruby_system)
 
-        self.ruby_system.num_of_sequencers = len(all_cores) + len(self._dma_controllers)
+        self.ruby_system.num_of_sequencers = len(all_cores) + len(self._dma_controllers) + len(self._io_controllers)
         # SimpleNetwork requires .int_links and .routers to exist
         # if we want to call SimpleNetwork.setup_buffers()
         self.ruby_system.network.int_links = self.ruby_system.network._int_links
@@ -123,13 +127,28 @@ class OctopiCache(AbstractRubyCacheHierarchy, AbstractThreeLevelCacheHierarchy):
         self.directory_controller_int_links = _directory_controller_int_links
 
     def _create_dma_controllers(self, board, ruby_system):
+        # IOController for full system simulation
+        if self._is_fullsystem:
+            self.io_sequencer = DMASequencer(version=0, ruby_system=self.ruby_system)
+            self.io_sequencer.in_ports = board.get_mem_side_coherent_io_port()
+            self.ruby_system.io_controller = DMAController(
+                dma_sequencer=self.io_sequencer,
+                ruby_system=self.ruby_system
+            )
+            self._io_controllers.append(self.ruby_system.io_controller)
+            self.io_controller_router = RubyRouter(self.ruby_system.network)
+            self.ruby_system.network._add_router(self.io_controller_router)
+            self.io_controller_ext_link = RubyExtLink(ext_node=self._io_controllers[0], int_node=self.io_controller_router)
+            self.ruby_system.network._add_ext_link(self.io_controller_ext_link)
+            self.io_controller_int_links = RubyIntLink.create_bidirectional_links(self.io_controller_router, self.ruby_system.network.cross_ccd_router)
+            self.ruby_system.network._add_int_link(self.io_controller_int_links[0])
+            self.ruby_system.network._add_int_link(self.io_controller_int_links[1])
+
         self._dma_controllers = []
         if board.has_dma_ports():
-            dma_ports = board.get_dma_ports()
             for i, port in enumerate(dma_ports):
                 ctrl = DMAController(self.ruby_system.network, cache_line_size)
-                ctrl.dma_sequencer = DMASequencer(version=i, in_ports=port)
+                ctrl.dma_sequencer = DMASequencer(version=i+1, in_ports=port)
                 self._dma_controllers.append(ctrl)
                 ctrl.ruby_system = self.ruby_system
-                self.ruby_system.network.connect_router_to_cross_ccd_router()
             ruby_system.dma_controllers = self._dma_controllers
