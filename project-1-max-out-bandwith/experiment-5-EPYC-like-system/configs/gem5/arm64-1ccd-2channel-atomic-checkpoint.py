@@ -1,4 +1,4 @@
-from gem5.components.boards.riscv_board import RiscvBoard
+from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.memory.memory import ChanneledMemory
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
@@ -14,14 +14,18 @@ from gem5.simulate.exit_event import ExitEvent
 
 import m5
 from m5.objects import DDR4_2400_16x4
+from m5.objects import ArmDefaultRelease
+from m5.objects import VExpress_GEM5_Foundation
 
 from gem5_components.octopi_cache.Octopi import OctopiCache
+from pathlib import Path
 
-requires(isa_required=ISA.RISCV)
+requires(isa_required=ISA.ARM)
 
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", type=str)
+parser.add_argument("--checkpoint_path", type=str)
 args = parser.parse_args()
 
 num_ccxs = 1
@@ -49,15 +53,12 @@ memory = ChanneledMemory(
     addr_mapping = None
 )
 
-processor = SimpleSwitchableProcessor(
-    starting_core_type = CPUTypes.ATOMIC,
-    switch_core_type = CPUTypes.TIMING,
-    isa = ISA.RISCV,
-    num_cores = num_cores,
+processor = SimpleProcessor(
+    cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=num_cores
 )
 
-class HighPerformanceRiscvBoard(RiscvBoard):
-    @overrides(RiscvBoard)
+class HighPerformanceArmBoard(ArmBoard):
+    @overrides(ArmBoard)
     def get_default_kernel_args(self):
         return [
             "earlyprintk=ttyS0",
@@ -68,29 +69,38 @@ class HighPerformanceRiscvBoard(RiscvBoard):
             "rw",
         ]
 
+release = ArmDefaultRelease()
+platform = VExpress_GEM5_Foundation()
+
 # Setup the board.
-board = HighPerformanceRiscvBoard(
+board = HighPerformanceArmBoard(
     clk_freq="4GHz",
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
+    release=release,
+    platform=platform,
 )
 
 # Set the Full System workload.
 board.set_kernel_disk_workload(
-    kernel=Resource("riscv-bootloader-vmlinux-5.10"),
-    disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/rv64gc-hpc-2204.img"),
-    readfile_contents=f"{command}"
+    kernel=Resource("arm64-linux-kernel-5.10.110"),
+    disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/arm64-hpc-2204.img"),
+    bootloader=Resource("arm64-bootloader-foundation"),
+    readfile_contents=f"{command}",
 )
 
+def save_checkpoint():
+    simulator.save_checkpoint(args.checkpoint_path)
 
 def handle_work_begin():
     print(f"Exit due to m5_work_begin()")
     print(f"info: Resetting stats")
     m5.stats.reset()
-    print(f"info: Switching CPU")
-    processor.switch()
-    yield False
+    #print(f"info: Switching CPU")
+    #processor.switch()
+    save_checkpoint()
+    yield True
 
 def handle_work_end():
     print(f"Exit due to m5_work_end()")
@@ -105,7 +115,7 @@ def handle_exit():
 simulator = Simulator(
     board=board,
     on_exit_event={
-        ExitEvent.WORKBEGIN: handle_work_begin(),
+        ExitEvent.WORKBEGIN: handle_work_begin(), # save checkpoint here
         ExitEvent.WORKEND: handle_work_end(),
         ExitEvent.EXIT: handle_exit()
     }

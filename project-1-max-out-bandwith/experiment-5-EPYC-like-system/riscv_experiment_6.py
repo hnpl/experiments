@@ -9,10 +9,12 @@ from gem5_components.workloads_params.npb_params import NPBParams, NPBBenchmark,
 from gem5_components.workloads_params.spatter_params import SpatterParams
 from gem5_components.workloads_params.gups_params import GUPSParams
 
-experiment_tag = "riscv-hpc-test-2"
+experiment_tag = "riscv-hpc-test-6"
+checkpoint_experiment_tag = "riscv-hpc-test-5"
 gem5_binary_path = "/scr/hn/takekoputa-gem5/build/RISCV_MESI_Three_Level/gem5.fast"
-gem5_config_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/configs/gem5/rv64gc-1ccd-2channel-atomic.py"
+gem5_config_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/configs/gem5/rv64gc-1ccd-2channel-timing-restore.py"
 gem5_output_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/results/" + experiment_tag + "/"
+gem5_checkpoint_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/checkpoints/" + checkpoint_experiment_tag + "/"
 disk_image_path = "/scr/hn/DISK_IMAGES/rv64gc-hpc-2204.img"
 
 # the gem5 binary @ azacca in /scr/hn/gem5-takekoputa-stream/build/RISCV_MESI_Three_Level/gem5.fast
@@ -29,7 +31,7 @@ def sanity_check():
 def output_folder_generator(isa, workload_naming_string):
     return "-".join([isa, workload_naming_string])
 
-def gem5_params_generator(output_path, command):
+def gem5_params_generator(output_path, command, checkpoint_path):
     gem5_params = {}
     config_params = {}
 
@@ -43,10 +45,11 @@ def gem5_params_generator(output_path, command):
     gem5_params["--listener-mode=off"] = ""
 
     config_params["--command"] = command
+    config_params["--checkpoint_path"] = checkpoint_path
 
     return gem5_params, config_params
 
-def metadata_generator(isa, disk_image_path, command, workload_naming_string):
+def metadata_generator(isa, disk_image_path, checkpoint_path, command, workload_naming_string):
     metadata = {}
 
     metadata["tag"] = experiment_tag
@@ -62,8 +65,9 @@ def metadata_generator(isa, disk_image_path, command, workload_naming_string):
     metadata["isa"] = isa
     metadata["command"] = command
     metadata["disk-image-path"] = disk_image_path
+    metadata["checkpoint-path"] = checkpoint_path
     metadata["workload-naming-string"] = workload_naming_string
-    metadata["more-details"] = "Octopi cache with 1 ccd, 2-channeled memory, atomic cpu"
+    metadata["more-details"] = "Octopi cache with 1 ccd, 2-channeled memory, restore from a checkpoint taken at ROI begin"
     metadata["isa-string"] = "rv64gc"
 
     return metadata
@@ -74,8 +78,9 @@ def generate_experiment_unit(isa, params):
 
     output_folder_name = output_folder_generator(isa, workload_naming_string)
     output_path = str(Path(gem5_output_path_prefix) / output_folder_name)
+    checkpoint_path = str(Path(gem5_checkpoint_path_prefix) / output_folder_name)
 
-    gem5_params, config_params = gem5_params_generator(output_path, workload_command)
+    gem5_params, config_params = gem5_params_generator(output_path, workload_command, checkpoint_path)
 
     unit = ExperimentUnit(gem5_binary_path = gem5_binary_path,
                           gem5_config_path = gem5_config_path,
@@ -84,7 +89,7 @@ def generate_experiment_unit(isa, params):
                           config_params = config_params,
                           env = {})
 
-    metadata = metadata_generator(isa, disk_image_path, workload_command, workload_naming_string)
+    metadata = metadata_generator(isa, disk_image_path, checkpoint_path, workload_command, workload_naming_string)
     for key, val in metadata.items():
         unit.add_metadata(key, val)
 

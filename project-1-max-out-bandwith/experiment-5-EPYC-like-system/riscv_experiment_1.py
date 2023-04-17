@@ -17,9 +17,9 @@ disk_image_path = "/scr/hn/DISK_IMAGES/rv64gc-hpc-2204.img"
 
 # the gem5 binary @ azacca in /scr/hn/gem5-takekoputa-stream/build/RISCV_MESI_Three_Level/gem5.fast
 # the gem5 repo is at https://github.com/takekoputa/gem5
-# this binary is compiled off the rvv branch
-gem5_binary_md5sum = "3361e5972b9bf006ac864a31748c194d"
-disk_image_md5sum = "000bb3a6cd57c2cbd00906d64157f312"
+# this binary is compiled off the rvv-change-69897 branch
+gem5_binary_md5sum = "89f75454c7b84663a6569cb5979bcb64"
+disk_image_md5sum = "29c93cb76d41aa7081adf195ad70797d"
 
 def sanity_check():
     assert(Path(gem5_binary_path).exists())
@@ -50,9 +50,11 @@ def metadata_generator(isa, disk_image_path, command, workload_naming_string):
     metadata = {}
 
     metadata["tag"] = experiment_tag
-    metadata["git-hash"] = "f9cf3de711d59bc3a81bb8d49f1408b1f6349a7b(gem5)+44910a688f61d2d953868af0fa5dee2349ebbecbmine)"
+    metadata["git-hash"] = "851e469e55b69533a36de634bd1d1f424b31b07e(gem5)+" \
+                           "65ab68d46037b574f5982649c3175152d61594e3(cherry-pick)+" \
+                           "8fb0dee86aa84fa13bccb40ce31513ead030b3ac(mine)"
     metadata["git-remote"] = "https://github.com/takekoputa/gem5"
-    metadata["git-branch"] = "rvv"
+    metadata["git-branch"] = "rvv-change-69897"
 
     metadata["gem5-binary-md5sum"] = gem5_binary_md5sum
     metadata["disk-image-md5sum"] = disk_image_md5sum
@@ -107,6 +109,7 @@ if __name__ == "__main__":
                                                                json_filepath=json_file))
         experiment.add_experiment_unit(unit)
 
+    """
     # Adding some GUPS workloads
     table_number_of_elements = [2**k for k in range(10, 21)]
     inner_loop_number_of_elements = 128
@@ -117,10 +120,12 @@ if __name__ == "__main__":
                                                             table_number_of_elements=size,
                                                             number_of_updates_inner_loop=inner_loop_number_of_elements))
         experiment.add_experiment_unit(unit)
+    """
 
     # Adding some NPB workloads
     for npb_workload in [NPBBenchmark.BT, NPBBenchmark.CG, NPBBenchmark.FT, NPBBenchmark.IS, NPBBenchmark.LU, NPBBenchmark.MG, NPBBenchmark.SP, NPBBenchmark.UA]:
-        for npb_workload_class in [NPBClass.S, NPBClass.W, NPBClass.C, NPBClass.D]:
+        #for npb_workload_class in [NPBClass.S, NPBClass.W, NPBClass.C, NPBClass.D]:
+        for npb_workload_class in [NPBClass.S]:
             unit = generate_experiment_unit(isa = "riscv",
                                             params = NPBParams(source_path=Path("/home/ubuntu/NPB/"),
                                                                with_roi_annotations=True,

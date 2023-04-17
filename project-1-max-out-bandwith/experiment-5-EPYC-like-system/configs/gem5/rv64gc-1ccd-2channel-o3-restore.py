@@ -16,12 +16,14 @@ import m5
 from m5.objects import DDR4_2400_16x4
 
 from gem5_components.octopi_cache.Octopi import OctopiCache
+from pathlib import Path
 
 requires(isa_required=ISA.RISCV)
 
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", type=str)
+parser.add_argument("--checkpoint_path", type=str)
 args = parser.parse_args()
 
 num_ccxs = 1
@@ -49,11 +51,8 @@ memory = ChanneledMemory(
     addr_mapping = None
 )
 
-processor = SimpleSwitchableProcessor(
-    starting_core_type = CPUTypes.ATOMIC,
-    switch_core_type = CPUTypes.TIMING,
-    isa = ISA.RISCV,
-    num_cores = num_cores,
+processor = SimpleProcessor(
+    cpu_type=CPUTypes.O3, isa=ISA.RISCV, num_cores=num_cores
 )
 
 class HighPerformanceRiscvBoard(RiscvBoard):
@@ -80,16 +79,20 @@ board = HighPerformanceRiscvBoard(
 board.set_kernel_disk_workload(
     kernel=Resource("riscv-bootloader-vmlinux-5.10"),
     disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/rv64gc-hpc-2204.img"),
-    readfile_contents=f"{command}"
+    readfile_contents=f"{command}",
+    checkpoint=Path(args.checkpoint_path)
 )
 
+def save_checkpoint():
+    simulator.save_checkpoint(args.checkpoint_path)
 
 def handle_work_begin():
     print(f"Exit due to m5_work_begin()")
     print(f"info: Resetting stats")
     m5.stats.reset()
-    print(f"info: Switching CPU")
-    processor.switch()
+    #print(f"info: Switching CPU")
+    #processor.switch()
+    #save_checkpoint()
     yield False
 
 def handle_work_end():
@@ -105,7 +108,7 @@ def handle_exit():
 simulator = Simulator(
     board=board,
     on_exit_event={
-        ExitEvent.WORKBEGIN: handle_work_begin(),
+        ExitEvent.WORKBEGIN: handle_work_begin(), # save checkpoint here
         ExitEvent.WORKEND: handle_work_end(),
         ExitEvent.EXIT: handle_exit()
     }
