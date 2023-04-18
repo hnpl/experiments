@@ -54,7 +54,7 @@ memory = ChanneledMemory(
 )
 
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=num_cores
+    cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=num_cores
 )
 
 class HighPerformanceArmBoard(ArmBoard):
@@ -69,6 +69,7 @@ class HighPerformanceArmBoard(ArmBoard):
             f"mem={self.get_memory().get_size()}",
             "init=/root/gem5-init.sh",
         ]
+
 release = ArmDefaultRelease()
 platform = VExpress_GEM5_Foundation()
 
@@ -88,6 +89,7 @@ board.set_kernel_disk_workload(
     disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/arm64-hpc-2204.img"),
     bootloader=Resource("arm64-bootloader-foundation"),
     readfile_contents=f"{command}",
+    checkpoint=Path(args.checkpoint_path)
 )
 
 def save_checkpoint():
