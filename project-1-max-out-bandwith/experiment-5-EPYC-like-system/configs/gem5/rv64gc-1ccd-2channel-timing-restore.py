@@ -40,7 +40,7 @@ cache_hierarchy = OctopiCache(
     l3_size = "32MiB",
     l3_assoc = 16,
     num_core_complexes = num_ccxs,
-    use_dma_ports = True,
+    is_fullsystem = True,
 )
 
 memory = ChanneledMemory(
