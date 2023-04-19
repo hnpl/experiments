@@ -11,9 +11,9 @@ from gem5_components.workloads_params.gups_params import GUPSParams
 
 experiment_tag = "riscv-hpc-test-5"
 gem5_binary_path = "/scr/hn/takekoputa-gem5/build/RISCV_MESI_Three_Level/gem5.fast"
-gem5_config_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/configs/gem5/rv64gc-1ccd-2channel-atomic-checkpoint.py"
-gem5_output_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/results/" + experiment_tag + "/"
-gem5_checkpoint_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system/checkpoints/" + experiment_tag + "/"
+gem5_config_path = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system-validation/configs/gem5/rv64gc-1ccd-2channel-atomic-checkpoint.py"
+gem5_output_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system-validation/results/" + experiment_tag + "/"
+gem5_checkpoint_path_prefix = "/home/hn/experiments/project-1-max-out-bandwith/experiment-5-EPYC-like-system-validation/checkpoints/" + experiment_tag + "/"
 disk_image_path = "/scr/hn/DISK_IMAGES/rv64gc-hpc-2204.img"
 
 # the gem5 binary @ azacca in /scr/hn/gem5-takekoputa-stream/build/RISCV_MESI_Three_Level/gem5.fast
