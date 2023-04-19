@@ -8,6 +8,7 @@ import multiprocessing
 from gem5_components.workloads_params.npb_params import NPBParams, NPBBenchmark, NPBClass
 from gem5_components.workloads_params.spatter_params import SpatterParams
 from gem5_components.workloads_params.gups_params import GUPSParams
+from gem5_components.workloads_params.stream_params import STREAMParams
 
 experiment_tag = "arm-hpc-test-1"
 gem5_binary_path = "/scr/hn/takekoputa-gem5/build/ARM_MESI_Three_Level/gem5.fast"
@@ -122,10 +123,18 @@ if __name__ == "__main__":
         experiment.add_experiment_unit(unit)
     """
 
+    # Adding some STREAM workloads
+    stream_sizes = [2**k for k in range(20, 31)] + [2**k + 2**(k-1) for k in range(20, 30)]
+    for stream_size in stream_sizes:
+        unit = generate_experiment_unit(isa = "arm",
+                                        params = STREAMParams(source_path=Path("/home/ubuntu/simple-vectorizable-microbenchmarks/stream/"),
+                                                              with_roi_annotations=True,
+                                                              number_of_elements=stream_size))
+        experiment.add_experiment_unit(unit)
+
     # Adding some NPB workloads
     for npb_workload in [NPBBenchmark.BT, NPBBenchmark.CG, NPBBenchmark.FT, NPBBenchmark.IS, NPBBenchmark.LU, NPBBenchmark.MG, NPBBenchmark.SP, NPBBenchmark.UA]:
-        #for npb_workload_class in [NPBClass.S, NPBClass.W, NPBClass.C, NPBClass.D]:
-        for npb_workload_class in [NPBClass.S]:
+        for npb_workload_class in [NPBClass.S, NPBClass.W, NPBClass.C, NPBClass.D]:
             unit = generate_experiment_unit(isa = "arm",
                                             params = NPBParams(source_path=Path("/home/ubuntu/NPB/"),
                                                                with_roi_annotations=True,
