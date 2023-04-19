@@ -98,7 +98,7 @@ def handle_work_begin():
     m5.stats.reset()
     print(f"info: Switching CPU")
     processor.switch()
-    yield True
+    yield False
 
 def handle_work_end():
     print(f"Exit due to m5_work_end()")
