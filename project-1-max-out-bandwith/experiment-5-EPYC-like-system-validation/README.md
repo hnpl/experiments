@@ -7,3 +7,4 @@
 | Experiment 5 | Taking checkpoints using Atomic CPU.                                          |
 | Experiment 6 | Restoring from checkpoints in Experiment 5, the CPU is changed to Timing CPU. |
 | Experiment 7 | Restoring from checkpoints in Experiment 5, the CPU is changed to O3 CPU.     |
+| Experiment 8 | Atomic CPU switching to O3 CPU at ROI begin, 2 CCDs.                          |
